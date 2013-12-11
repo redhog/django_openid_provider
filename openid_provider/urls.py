@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # vim: set ts=4 sw=4 : */
 
-from django.conf.urls.defaults import *
+from django.conf.urls import *
 
 urlpatterns = patterns('openid_provider.views',
     url(r'^$', 'openid_server', name='openid-provider-root'),
