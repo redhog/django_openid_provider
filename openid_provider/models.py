@@ -33,6 +33,11 @@ class OpenID(models.Model):
         if self.default:
             self.user.openid_set.exclude(pk=self.pk).update(default=False)
 
+class AxData(models.Model):
+    openid = models.ForeignKey(OpenID, related_name="axdatas")
+    key = models.CharField(max_length=255)
+    value = models.TextField(blank=True)
+
 class TrustedRoot(models.Model):
     openid = models.ForeignKey(OpenID)
     trust_root = models.CharField(max_length=200)
