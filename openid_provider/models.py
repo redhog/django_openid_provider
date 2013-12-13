@@ -41,6 +41,7 @@ class AxData(models.Model):
 class TrustedRoot(models.Model):
     openid = models.ForeignKey(OpenID)
     trust_root = models.CharField(max_length=200)
+    allow_attributes = models.TextField(blank=True)
 
     def __unicode__(self):
         return unicode(self.trust_root)

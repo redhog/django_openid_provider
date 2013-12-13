@@ -19,3 +19,4 @@ AX_DATA_CALLBACK = getattr(settings, 'OPENID_PROVIDER_AX_DATA_CALLBACK',
 AX_EXTENSION = getattr(settings, 'OPENID_PROVIDER_AX_EXTENSION', False)
 
 FORCE_AUTH = getattr(settings, 'OPENID_FORCE_AUTH', False)
+AUTHORIZE_DATA = getattr(settings, 'OPENID_AUTHORIZE_DATA', False)

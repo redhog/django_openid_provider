@@ -8,6 +8,7 @@ from openid.extensions import ax, sreg
 from django.core.exceptions import ImproperlyConfigured
 from django.utils.importlib import import_module
 from django.core.urlresolvers import reverse
+from openid_provider import conf
 
 def openid_is_authorized(request, identity_url, trust_root):
     """
@@ -51,6 +52,22 @@ def import_module_attr(path):
     package, module = path.rsplit('.', 1)
     return getattr(import_module(package), module)
 
+def filter_data(request, orequest, prefix, data):
+    if not conf.AUTHORIZE_DATA:
+        return data
+
+    openid = openid_get_identity(request, orequest.identity)
+    trust_root = openid.trustedroot_set.filter(trust_root=orequest.trust_root)[0]
+    allowed_attributes = set(trust_root.allow_attributes.split("\n"))
+
+    res = {}
+    for key, value in data.iteritems():
+        if prefix + key in allowed_attributes:
+            res[key] = value
+
+    return res
+
+
 def get_default_sreg_data(request, orequest):
     return {
         'email': request.user.email,
@@ -67,27 +84,36 @@ def get_default_ax_data(request, orequest):
         'http://axschema.org/namePerson/last': request.user.last_name,
     }
 
-    openid = openid_is_authorized(request, orequest.identity,
-                                  orequest.trust_root)
+    openid = openid_get_identity(request, orequest.identity)
     for axdata in openid.axdatas.all():
         res[axdata.key] = axdata.value
 
     return res
 
-def add_sreg_data(request, orequest, oresponse):
+def get_sreg_data(request, orequest):
     callback = get_sreg_callback()
     if callback is None or not callable(callback):
-        return
-    sreg_data = callback(request, orequest)
+        return None
+    return callback(request, orequest)
+
+def add_sreg_data(request, orequest, oresponse):
+    sreg_data = get_sreg_data(request, orequest)
+    if sreg_data is None: return
+    sreg_data = filter_data(request, orequest, 'sreg::', sreg_data)
     sreg_req = sreg.SRegRequest.fromOpenIDRequest(orequest)
     sreg_resp = sreg.SRegResponse.extractResponse(sreg_req, sreg_data)
     oresponse.addExtension(sreg_resp)
 
-def add_ax_data(request, orequest, oresponse):
+def get_ax_data(request, orequest):
     callback = get_ax_callback()
     if callback is None or not callable(callback):
-        return
-    ax_data = callback(request, orequest)
+        return None
+    return callback(request, orequest)
+
+def add_ax_data(request, orequest, oresponse):
+    ax_data = get_ax_data(request, orequest)
+    if ax_data is None: return
+    ax_data = filter_data(request, orequest, 'ax::', ax_data)
     ax_req = ax.FetchRequest.fromOpenIDRequest(orequest)
     ax_resp = ax.FetchResponse(ax_req)
     if ax_req is not None:
