@@ -30,7 +30,8 @@ from openid.yadis.discover import DiscoveryFailure
 from openid.yadis.constants import YADIS_CONTENT_TYPE
 
 from openid_provider import conf
-from openid_provider.utils import add_sreg_data, add_ax_data, get_store
+from openid_provider.utils import add_sreg_data, add_ax_data, get_store, openid_is_authorized, openid_get_identity
+
 
 logger = logging.getLogger(__name__)
 
@@ -195,41 +196,3 @@ def landing_page(request, orequest, login_url=None,
         querystring[redirect_field_name] = path
         login_url_parts[4] = querystring.urlencode(safe='/')
     return HttpResponseRedirect(urlparse.urlunparse(login_url_parts))
-
-def openid_is_authorized(request, identity_url, trust_root):
-    """
-    Check that they own the given identity URL, and that the trust_root is
-    in their whitelist of trusted sites.
-    """
-    if not request.user.is_authenticated():
-        return None
-
-    openid = openid_get_identity(request, identity_url)
-    if openid is None:
-        return None
-
-    if openid.trustedroot_set.filter(trust_root=trust_root).count() < 1:
-        return None
-
-    return openid
-
-def openid_get_identity(request, identity_url):
-    """
-    Select openid based on claim (identity_url).
-    If none was claimed identity_url will be 'http://specs.openid.net/auth/2.0/identifier_select'
-    - in that case return default one
-    - if user has no default one, return any
-    - in other case return None!
-    """
-    for openid in request.user.openid_set.iterator():
-        if identity_url == request.build_absolute_uri(
-                reverse('openid-provider-identity', args=[openid.openid])):
-            return openid
-    if identity_url == 'http://specs.openid.net/auth/2.0/identifier_select':
-        # no claim was made, choose user default openid:
-        openids = request.user.openid_set.filter(default=True)
-        if openids.count() == 1:
-            return openids[0]
-        if request.user.openid_set.count() > 0:
-            return request.user.openid_set.all()[0]
-    return None
