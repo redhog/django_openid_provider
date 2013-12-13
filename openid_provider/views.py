@@ -5,6 +5,7 @@ import urlparse
 import logging
 from urllib import urlencode, quote
 
+from django.contrib.auth import logout
 from django.conf import settings
 from django.core.urlresolvers import reverse
 from django.http import HttpResponse, HttpResponseRedirect, QueryDict
@@ -40,6 +41,7 @@ def openid_server(request):
     This view is the actual OpenID server - running at the URL pointed to by
     the <link rel="openid.server"> tag.
     """
+
     logger.debug('server request %s: %s',
                  request.method, request.POST or request.GET)
     server = Server(get_store(request),
@@ -55,6 +57,10 @@ def openid_server(request):
 
     querydict = dict(request.REQUEST.items())
     orequest = server.decodeRequest(querydict)
+
+    if conf.FORCE_AUTH and orequest and orequest.mode in BROWSER_REQUEST_MODES and request.user.is_authenticated():
+        logout(request)
+
     if not orequest:
         orequest = request.session.get('OPENID_REQUEST', None)
         if orequest:
