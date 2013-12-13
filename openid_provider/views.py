@@ -30,7 +30,9 @@ from openid.yadis.discover import DiscoveryFailure
 from openid.yadis.constants import YADIS_CONTENT_TYPE
 
 from openid_provider import conf
-from openid_provider.utils import add_sreg_data, add_ax_data, get_store, openid_is_authorized, openid_get_identity
+from openid_provider import axschema
+from openid_provider import sregschema
+from openid_provider.utils import add_sreg_data, add_ax_data, get_sreg_data, get_ax_data, get_store, openid_is_authorized, openid_get_identity
 
 
 logger = logging.getLogger(__name__)
@@ -45,6 +47,7 @@ def openid_server(request):
                  request.method, request.POST or request.GET)
     server = Server(get_store(request),
         op_endpoint=request.build_absolute_uri(reverse('openid-provider-root')))
+    
 
     if not request.is_secure():
         # if request is not secure allow only encrypted association sessions
@@ -149,9 +152,46 @@ def openid_decide(request):
             "but this url is not associated with your account." %
             orequest.identity)
 
-    # We unconditionally allow access without prompting the user
-    openid.trustedroot_set.create(trust_root=orequest.trust_root)
-    return HttpResponseRedirect(reverse('openid-provider-root'))
+    if not conf.AUTHORIZE_DATA:
+        # We unconditionally allow access without prompting the user
+        openid.trustedroot_set.create(trust_root=orequest.trust_root)
+        return HttpResponseRedirect(reverse('openid-provider-root'))
+
+    if request.method == 'POST':
+        if 'allow' in request.POST:
+            openid.trustedroot_set.create(
+                trust_root=orequest.trust_root,
+                allow_attributes = '\n'.join(request.POST.getlist('allow_attributes')))
+        return HttpResponseRedirect(reverse('openid-provider-root'))
+
+    data = {}
+
+    sreg_data = get_sreg_data(request, orequest)
+    if sreg_data is not None:
+        for key, value in sreg_data.iteritems():
+            value = {'value': value, 'title': key, 'description': '', 'type': 'http://www.w3.org/2001/XMLSchema#normalizedString'}
+            if key in sregschema.sregschema:
+                value.update(sregschema.sregschema[key])
+            data['sreg::' + key] = value
+    ax_data = get_ax_data(request, orequest)
+    if ax_data is not None:
+        for key, value in ax_data.iteritems():
+            value = {'value': value, 'title': key, 'description': '', 'type': 'http://www.w3.org/2001/XMLSchema#normalizedString'}
+            if key in axschema.axschema:
+                value.update(axschema.axschema[key])
+            data['ax::' + key] = value
+
+    # FIXME: How do I get a server object here? to do server.trustRootValid() ?
+    trust_root_valid = "Valid"
+
+    return render_to_response('openid_provider/decide.html', {
+            'openid': openid,
+            'orequest': orequest,
+            'request': request,
+            'data': data,
+            'trust_root': orequest.trust_root,
+            "trust_root_valid": trust_root_valid
+            }, context_instance=RequestContext(request))
 
 
 def error_page(request, msg):
