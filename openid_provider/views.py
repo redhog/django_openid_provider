@@ -60,9 +60,14 @@ def openid_server(request):
         del request.session['AuthorizationInfo']
 
     querydict = dict(request.REQUEST.items())
+    returning = querydict.pop('returning', None)
     orequest = server.decodeRequest(querydict)
 
-    if conf.FORCE_AUTH and orequest and orequest.mode in BROWSER_REQUEST_MODES and request.user.is_authenticated():
+    if (    conf.FORCE_AUTH
+        and not returning
+        and orequest
+        and orequest.mode in BROWSER_REQUEST_MODES
+        and request.user.is_authenticated()):
         logout(request)
 
     if not orequest:
@@ -236,6 +241,14 @@ def landing_page(request, orequest, login_url=None,
     if not login_url:
         login_url = settings.LOGIN_URL
     path = request.get_full_path()
+
+    # Signal that we're returning from auth...
+    pathparts = list(urlparse.urlparse(path))
+    query = SafeQueryDict(pathparts[4], mutable=True)
+    query['returning'] = "true"
+    pathparts[4] = query.urlencode(safe='/')
+    path = urlparse.urlunparse(pathparts)
+
     login_url_parts = list(urlparse.urlparse(login_url))
     if redirect_field_name:
         querystring = SafeQueryDict(login_url_parts[4], mutable=True)
