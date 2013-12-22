@@ -9,6 +9,7 @@ from django.core.exceptions import ImproperlyConfigured
 from django.utils.importlib import import_module
 from django.core.urlresolvers import reverse
 from openid_provider import conf
+import uuid
 
 def openid_is_authorized(request, identity_url, trust_root):
     """
@@ -59,11 +60,26 @@ def filter_data(request, orequest, prefix, data):
     openid = openid_get_identity(request, orequest.identity)
     trust_root = openid.trustedroot_set.filter(trust_root=orequest.trust_root)[0]
     allowed_attributes = set(trust_root.allow_attributes.split("\n"))
+    allowed_attributes.update(conf.ALLWAYS_ALL_ATTRIBUTES)
 
     res = {}
     for key, value in data.iteritems():
         if prefix + key in allowed_attributes:
             res[key] = value
+
+    fake_nick = 'anonymous-' + str(uuid.uuid5(uuid.NAMESPACE_DNS, orequest.identity.encode("utf-8")))
+    fake_email = 'no-reply-%s@example.com' % (fake_nick,)
+
+    if prefix == 'sreg::':
+        if 'email' not in res:
+            res['email'] = fake_email
+        if 'nickname' not in res:
+            res['nickname'] = fake_nick
+    if prefix == 'ax::':
+        if 'http://axschema.org/namePerson/friendly' not in res:
+            res['http://axschema.org/namePerson/friendly'] = fake_nick
+        if 'http://axschema.org/contact/email' not in res:
+            res['http://axschema.org/contact/email'] = fake_email
 
     return res
 

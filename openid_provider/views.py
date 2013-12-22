@@ -192,6 +192,11 @@ def openid_decide(request):
                 value.update(axschema.axschema[key])
             data['ax::' + key] = value
 
+    # Don't even bother asking...
+    for key in conf.ALLWAYS_ALL_ATTRIBUTES:
+        if key in data:
+            del data[key]
+
     # FIXME: How do I get a server object here? to do server.trustRootValid() ?
     trust_root_valid = "Valid"
 

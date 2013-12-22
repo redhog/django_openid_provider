@@ -20,3 +20,6 @@ AX_EXTENSION = getattr(settings, 'OPENID_PROVIDER_AX_EXTENSION', False)
 
 FORCE_AUTH = getattr(settings, 'OPENID_FORCE_AUTH', False)
 AUTHORIZE_DATA = getattr(settings, 'OPENID_AUTHORIZE_DATA', False)
+
+ALLWAYS_ALL_ATTRIBUTES = getattr(settings, 'OPENID, ALLWAYS_ALL_ATTRIBUTES', ("ax::http://axschema.org/namePerson/friendly",
+                                                                              "sreg::nickname"))
